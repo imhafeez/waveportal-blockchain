@@ -3,6 +3,9 @@ import { ethers } from "ethers";
 import {useEffect, useState} from "react"
 import abi from "./utils/WavePortal.json"
 
+
+
+
 import './App.css';
 
 export default function App() {
@@ -10,9 +13,9 @@ export default function App() {
   const [currentAccount, setCurrentAccount] = useState("");
   const [currentWave, setCurrentWave] = useState(0);
   const [isMining, setIsMining] = useState(false);
-
+  const [allWaves,setAllWaves] = useState([]);
   
-  const contractAddress = process.env['contract_address']
+  const contractAddress = "0xad469893deFf0C1B945eEF71D6E7C742aA8C400a";
   /**
    * Create a variable here that references the abi content!
    */
@@ -20,7 +23,9 @@ export default function App() {
 
   
   const checkIfWalletIsConnected = async () => {
-
+    
+   
+    
     try {
       const { ethereum } = window;
 
@@ -36,13 +41,17 @@ export default function App() {
         console.log("Found an authorized account:", account);
         setCurrentAccount(account);
 
-      const providers = new ethers.providers.Web3Provider(ethereum);
-      const signer = providers.getSigner();
+        getAllWaves();
+        
+        const providers = new ethers.providers.Web3Provider(ethereum);
+        const signer = providers.getSigner();
+  
+        const wavePortalContract = new ethers.Contract(contractAddress,contractABI,signer);
+        let count = await wavePortalContract.getTotalWaves();
+        console.log("Retrieved total wave count...", count.toNumber());
+        setCurrentWave(count.toNumber());
 
-      const wavePortalContract = new ethers.Contract(contractAddress,contractABI,signer);
-      let count = await wavePortalContract.getTotalWaves();
-      console.log("Retrieved total wave count...", count.toNumber());
-      setCurrentWave(count.toNumber());
+        
       }
       
     } catch (error) {
@@ -72,7 +81,7 @@ export default function App() {
 
       setCurrentAccount(accounts[0]);
 
-     
+      getAllWaves();
       
     } catch (error) {
       console.log(error);
@@ -92,7 +101,7 @@ export default function App() {
         let count = await wavePortalContract.getTotalWaves();
         console.log("Retrieved total wave count...", count.toNumber());
         
-        const waveTxn = await wavePortalContract.wave();
+        const waveTxn = await wavePortalContract.wave("This is a message");
 
         setIsMining(true);
         console.log("Minning...",waveTxn.hash);
@@ -105,6 +114,8 @@ export default function App() {
         count = await wavePortalContract.getTotalWaves();
         console.log("Retrieved total wave count...", count.toNumber());
         setCurrentWave(count.toNumber());
+
+        getAllWaves();
         
       }else {
         console.log("Ethereum object doesn't exist!");
@@ -117,6 +128,36 @@ export default function App() {
       console.log(error);
     }
     
+  }
+
+  const getAllWaves = async () => {
+
+    try {
+
+      const {ethereum} = window;
+      if(ethereum) {
+        const providers = new ethers.providers.Web3Provider(ethereum);
+        const signer = providers.getSigner();
+
+        const wavePortalContract = new ethers.Contract(contractAddress,contractABI,signer);
+
+        let waves = await wavePortalContract.getAllWaves();
+        console.log(waves);
+        let wavesCleaned = [];
+        waves.forEach(wave => {
+          wavesCleaned.push({address:wave.waver,
+                             timestamp:new Date(wave.timestamp * 1000),
+                             message:wave.message});
+        });
+        
+        setAllWaves(wavesCleaned);
+      }else {
+        console.log("Ethereum object doesn't exist!")
+      }
+      
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   
@@ -145,6 +186,14 @@ export default function App() {
         {currentAccount  && !isMining && (<div className="waveCount">I got {currentWave} 👋🏻</div>)}
         {currentAccount && isMining && (<div className="waveCount">⛏ Mining ... </div>)}
 
+        {allWaves.map((wave,index) => {
+          return (
+            <div key={index} style={{ backgroundColor: "OldLace", marginTop: "16px", padding: "8px" }}>
+              <div>Address: {wave.address}</div>
+              <div>Time: {wave.timestamp.toString()}</div>
+              <div>Message: {wave.message}</div>
+            </div>)
+        })}
       </div>   
     </div>
   );
